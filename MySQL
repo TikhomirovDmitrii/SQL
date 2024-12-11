@@ -1,0 +1,35 @@
+WITH date_range AS (
+    SELECT 
+        tab_num,
+        DATE_ADD('2020-09-01', INTERVAL n DAY) AS ymd_date
+    FROM (
+        SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL 
+        SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7
+    ) AS nums
+    CROSS JOIN (
+        SELECT DISTINCT tab_num FROM source_table
+    ) AS employees
+    WHERE DATE_ADD('2020-09-01', INTERVAL n DAY) <= '2020-12-31'
+),
+extended_table AS (
+    SELECT 
+        d.tab_num,
+        d.ymd_date,
+        CASE
+            WHEN WEEKDAY(d.ymd_date) IN (5, 6) THEN NULL
+            WHEN t.start_date <= d.ymd_date AND d.ymd_date <= COALESCE(t.end_da, t.finish_date) THEN
+                CASE t.wplace_type
+                    WHEN 0 THEN 1
+                    WHEN 1 THEN 0
+                    WHEN 2 THEN 1
+                    WHEN 3 THEN IF(MOD(DATEDIFF(d.ymd_date, t.start_date) DIV 7, 2) = 0, 0, 1)
+                    WHEN 4 THEN IF(MOD((DATEDIFF(d.ymd_date, t.start_date) DIV 7) DIV 2, 2) = 0, 0, 1)
+                    ELSE NULL
+                END
+            ELSE NULL
+        END AS to_be_at_office
+    FROM date_range d
+    LEFT JOIN source_table t
+    ON d.tab_num = t.tab_num
+)
+SELECT * FROM extended_table;
